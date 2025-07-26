@@ -59,10 +59,39 @@ def add_vectors(angle1, length1, angle2, length2):
     
     return angle, length
 
+def collide(particle1, particle2):
+  dx = particle1.x - particle2.x
+  dy = particle1.y - particle2.y
+  
+  distance = math.hypot(dx, dy)
+  
+  if distance < particle1.size + particle2.size:
+    tangent = math.atan2(dy, dx)
+    angle = 0.5 * math.pi + tangent
+    
+    particle1.angle = 2 * tangent - particle1.angle
+    particle2.angle = 2 * tangent - particle2.angle
+    particle1.speed *= elasticity
+    particle2.speed *= elasticity
+    
+    particle1.speed, particle2.speed = particle2.speed, particle1.speed
+    
+    particle1.x += math.sin(angle)
+    particle1.y -= math.cos(angle)
+    particle2.x -= math.sin(angle)
+    particle2.y += math.cos(angle)
+
+def find_particle(particles, x, y):
+  for p in particles:
+    if math.hypot(p.x - x, p.y - y) <= p.size:
+      return p
+  
+  return None
+
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption('Tutorial 1')
 
-num_of_particles = 10
+num_of_particles = 3
 particle_list = []
 
 for _ in range(num_of_particles):
@@ -76,17 +105,38 @@ for _ in range(num_of_particles):
   
   particle_list.append(particle)
 
+selected_particle = None
 running = True
 while running:
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
       running = False
+      
+    if event.type == pygame.MOUSEBUTTONDOWN:
+      mouseX, mouseY = pygame.mouse.get_pos()
+      selected_particle = find_particle(particle_list, mouseX, mouseY)
+    elif event.type == pygame.MOUSEBUTTONUP:
+      selected_particle.colour = (0, 0, 255)
+      selected_particle = None
   
   screen.fill(background_colour)
   
-  for particle in particle_list:
-    particle.move()
-    particle.bounce()
+  if selected_particle:
+    selected_particle.colour = (255, 0, 0)
+    mouseX, mouseY = pygame.mouse.get_pos()
+    dx = mouseX - selected_particle.x
+    dy = mouseY - selected_particle.y
+    selected_particle.angle = math.atan2(dy, dx) + 0.5 * math.pi
+    selected_particle.speed = math.hypot(dx, dy) * 0.1
+
+  for i, particle in enumerate(particle_list):
+    if particle != selected_particle:
+      particle.move()
+      particle.bounce()
+    
+    for particle2 in particle_list[i+1:]:
+      collide(particle, particle2)
+    
     particle.display()
     
   pygame.display.flip()
